@@ -21,7 +21,7 @@ def generate_input_data(
     data_directory = "../stochastic_data_generation_inputs/"
 
     # start with the demand
-    for district in nile_model.irr_districts.values():
+    for district in nile_model.objects_by_class("IrrigationDistrict"):
         one_year = np.loadtxt(f"{data_directory}IrrDemand{district.name}.txt")
         demand_vector = np.empty(0)
         loop_counter = sim_horizon + demand_data_carry_over
@@ -95,8 +95,8 @@ def generate_input_data(
 
         loop_counter -= 1
     inflow_dict = get_inflow_dict(numbered_catchments, atbara, mogren, bluenile)
-    for catchment in nile_model.catchments.values():
-        catchment.inflow = np.array(inflow_dict[catchment.name])
+    for catchment in nile_model.objects_by_class("Catchment"):
+        catchment.streamflow = np.array(inflow_dict[catchment.name])
 
     # nile_model.set_GERD_filling_schedule(GERD_filling)
 
