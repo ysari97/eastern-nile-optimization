@@ -1,6 +1,9 @@
 import numpy as np
 import os
 from scipy.constants import g
+from array import array
+from bisect import bisect_right
+from .utils import modified_interp
 
 dir_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 data_directory = os.path.join(dir_path, "../data/")
@@ -12,7 +15,7 @@ class Catchment:
     # vector which stores a value for each time-step
     def __init__(self, name):
         self.name = name
-        self.streamflow = np.loadtxt(f"{data_directory}Inflow{name}.txt")
+        # self.streamflow = np.loadtxt(f"{data_directory}Inflow{name}.txt")
 
 
 class HydropowerPlant:
@@ -42,6 +45,7 @@ class HydropowerPlant:
         mW
         Total design capacity of the plant
     """
+
     def __init__(self, reservoir, identifier=None, release_share=None):
 
         self.reservoir = reservoir
@@ -111,11 +115,11 @@ class IrrigationDistrict:
     def __init__(self, name):
         # Explanation placeholder
         self.name = name
-        fh = os.path.join(data_directory, f"IrrDemand{name}.txt")
+        fh = os.path.join(data_directory, f"irr_demand_{name}.txt")
         self.demand = np.loadtxt(fh)
-        self.received_flow = np.empty(0)
-        self.incoming_flow = np.empty(0)
-        self.deficit = np.empty(0)
+        self.received_flow = array("f", [])
+        self.incoming_flow = array("f", [])
+        self.deficit = array("f", [])
 
 
 class Reservoir:
@@ -171,52 +175,42 @@ class Reservoir:
         fh = os.path.join(data_directory, f"evap_{name}.txt")
         self.evap_rates = np.loadtxt(fh)
 
-        fh = os.path.join(data_directory, f"min_max_release_{name}.txt")
-        self.rating_curve = np.loadtxt(fh)
-
-        fh = os.path.join(data_directory, f"sto_min_max_release_{name}.txt")
+        fh = os.path.join(data_directory, f"store_min_max_release_{name}.txt")
         self.storage_to_minmax_rel = np.loadtxt(fh)
 
-        fh = os.path.join(data_directory, f"lsto_rel_{name}.txt")
-        self.level_to_storage_rel = np.loadtxt(fh)
+        fh = os.path.join(data_directory, f"store_level_rel_{name}.txt")
+        self.storage_to_level_rel = np.loadtxt(fh)
 
-        fh = os.path.join(data_directory, f"lsur_rel_{name}.txt")
-        self.level_to_surface_rel = np.loadtxt(fh)
-
-        fh = os.path.join(data_directory, f"stosur_rel_{name}.txt")
+        fh = os.path.join(data_directory, f"store_sur_rel_{name}.txt")
         self.storage_to_surface_rel = np.loadtxt(fh)
 
-        self.storage_vector = np.empty(0)
-        self.level_vector = np.empty(0)
-        self.inflow_vector = np.empty(0)
-        self.release_vector = np.empty(0)
+        self.storage_vector = array("f", [])
+        self.level_vector = array("f", [])
+        self.inflow_vector = array("f", [])
+        self.release_vector = array("f", [])
         self.hydropower_plant = None
-        self.hydroenergy_produced = np.empty(0)
-        self.total_evap = np.empty(0)
-        self.received_flow = np.empty(0)
+        self.hydroenergy_produced = array("f", [])
+        # self.total_evap = np.empty(0)
 
     def storage_to_level(self, s):
-        return np.interp(s, self.level_to_storage_rel[1], self.level_to_storage_rel[0])
-
-    def level_to_surface(self, h):
-        return np.interp(h, self.level_to_surface_rel[0], self.level_to_surface_rel[1])
+        return modified_interp(s, self.storage_to_level_rel[0], self.storage_to_level_rel[1])
 
     def storage_to_surface(self, s):
-        return np.interp(
+        return modified_interp(
             s, self.storage_to_surface_rel[0], self.storage_to_surface_rel[1]
         )
 
-    def level_to_minmax(self, h):
-        return (
-            np.interp(h, self.rating_curve[0], self.rating_curve[1]),
-            np.interp(h, self.rating_curve[0], self.rating_curve[2]),
-        )
-
     def storage_to_minmax(self, s):
-        return (
-            np.interp(s, self.storage_to_minmax_rel[0], self.storage_to_minmax_rel[1]),
-            np.interp(s, self.storage_to_minmax_rel[0], self.storage_to_minmax_rel[2]),
-        )
+        # For minimum release constraint, we regard the data points as a step function
+        # such that once a given storage/elevation is surpassed, we have to release a
+        # certain given amount. For maximum, we use interpolation as detailed discharge
+        # capacity calculations are made for certain points
+
+        minimum_index = max(bisect_right(self.storage_to_minmax_rel[0], s), 1)
+        minimum_cons = self.storage_to_minmax_rel[1][minimum_index - 1]
+        maximum_cons = modified_interp(s, self.storage_to_minmax_rel[0], self.storage_to_minmax_rel[2])
+
+        return minimum_cons, maximum_cons
 
     def integration(
         self,
@@ -237,10 +231,9 @@ class Reservoir:
         -------
         """
 
-        self.received_flow = np.append(self.received_flow, net_secondly_inflow)
         self.inflow_vector = np.append(self.inflow_vector, net_secondly_inflow)
         current_storage = self.storage_vector[-1]
-        in_month_releases = np.empty(0)
+        in_month_releases = array("f", [])
         monthly_evap_total = 0
         integ_step_count = total_seconds / integ_step
 
@@ -249,12 +242,13 @@ class Reservoir:
             surface = self.storage_to_surface(current_storage)
 
             evaporation = surface * (
-                self.evap_rates[current_month - 1]
-                / (100 * integ_step_count)
+                self.evap_rates[current_month - 1] / (100 * integ_step_count)
             )
             monthly_evap_total += evaporation
 
-            min_possible_release, max_possible_release = self.storage_to_minmax(current_storage)
+            min_possible_release, max_possible_release = self.storage_to_minmax(
+                current_storage
+            )
 
             secondly_release = min(
                 max_possible_release, max(min_possible_release, policy_release_decision)
@@ -265,7 +259,7 @@ class Reservoir:
             #     self.constraint_check.append(("Hit UB", secondly_release, level))
             # else:
             #     self.constraint_check.append("Smooth release")
-            in_month_releases = np.append(in_month_releases, secondly_release)
+            in_month_releases.append(secondly_release)
 
             total_addition = net_secondly_inflow * integ_step
 
@@ -273,16 +267,14 @@ class Reservoir:
                 total_addition - evaporation - secondly_release * integ_step
             )
 
-        self.storage_vector = np.append(self.storage_vector, current_storage)
+        self.storage_vector.append(current_storage)
 
         avg_monthly_release = np.mean(in_month_releases)
-        self.release_vector = np.append(self.release_vector, avg_monthly_release)
+        self.release_vector.append(avg_monthly_release)
 
-        self.total_evap = np.append(self.total_evap, monthly_evap_total)
+        # self.total_evap = np.append(self.total_evap, monthly_evap_total)
 
         # Record level  based on storage for time t:
-        self.level_vector = np.append(
-            self.level_vector, self.storage_to_level(self.storage_vector[-1])
-        )
+        self.level_vector.append(self.storage_to_level(current_storage))
 
         return avg_monthly_release

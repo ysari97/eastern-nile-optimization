@@ -17,50 +17,54 @@ from ema_workbench.em_framework.optimization import (
     ArchiveLogger,
 )
 
-from data_generation import generate_input_data
-
 module_path = os.path.abspath(os.path.join(".."))
 if module_path not in sys.path:
     sys.path.append(module_path)
 from model.model_nile import ModelNile
 
+optimization_seed = 10
 
 if __name__ == "__main__":
     ema_logging.log_to_stderr(ema_logging.INFO)
 
     output_directory = "../outputs/"
     nile_model = ModelNile()
-    nile_model = generate_input_data(nile_model, sim_horizon=20)
 
     em_model = Model("NileProblem", function=nile_model)
 
-    parameter_count = nile_model.overarching_policy.get_total_parameter_count()
-    n_inputs = nile_model.overarching_policy.functions["release"].n_inputs
-    n_outputs = nile_model.overarching_policy.functions["release"].n_outputs
+    total_parameter_count = nile_model.overarching_policy.get_total_parameter_count()
+    release_parameter_count = nile_model.overarching_policy.functions["release"].get_free_parameter_number()
+    n_inputs_release = nile_model.overarching_policy.functions["release"].n_inputs
+    n_outputs_release = nile_model.overarching_policy.functions["release"].n_outputs
     RBF_count = nile_model.overarching_policy.functions["release"].RBF_count
-    p_per_RBF = 2 * n_inputs + n_outputs
+    p_per_RBF = 2 * n_inputs_release + n_outputs_release
+
+    # Since we first introduce the release policy to the model, first parameters
+    # belong to the RBFs. Only then, the parameters of hedging functions.
+    # Let's first put the levers for the release policy.
 
     lever_list = list()
-    for i in range(parameter_count):
-        modulus = (i - n_outputs) % p_per_RBF
+    for i in range(release_parameter_count):
+        modulus = (i - n_outputs_release) % p_per_RBF
         if (
-            (i >= n_outputs)
-            and (modulus < (p_per_RBF - n_outputs))
+            (i >= n_outputs_release)
+            and (modulus < (p_per_RBF - n_outputs_release))
             and (modulus % 2 == 0)
         ):  # centers:
             lever_list.append(RealParameter(f"v{i}", -1, 1))
         else:  # linear parameters for each release, radii and weights of RBFs:
             lever_list.append(RealParameter(f"v{i}", 0, 1))
 
+    for j in range(release_parameter_count, total_parameter_count):
+        lever_list.append(RealParameter(f"v{j}", 0, 1))
+
     em_model.levers = lever_list
 
     # specify outcomes
     em_model.outcomes = [
-        ScalarOutcome("egypt_irr", ScalarOutcome.MINIMIZE),
-        ScalarOutcome("egypt_90", ScalarOutcome.MINIMIZE),
-        ScalarOutcome("egypt_low_had", ScalarOutcome.MINIMIZE),
-        ScalarOutcome("sudan_irr", ScalarOutcome.MINIMIZE),
-        ScalarOutcome("sudan_90", ScalarOutcome.MINIMIZE),
+        ScalarOutcome("egypt_def", ScalarOutcome.MINIMIZE),
+        ScalarOutcome("min_HAD", ScalarOutcome.MAXIMIZE),
+        ScalarOutcome("sudan_def", ScalarOutcome.MINIMIZE),
         ScalarOutcome("ethiopia_hydro", ScalarOutcome.MAXIMIZE),
     ]
 
@@ -73,10 +77,10 @@ if __name__ == "__main__":
         ),
     ]
 
-    nfe = 50000
-    epsilon_list = [1e-1, 1e-2, 1e-2, 1e-1, 1e-2, 1e-1]
+    nfe = 100
+    epsilon_list = [1e-1, 1e-1, 1e-1, 1e-1]
 
-    random.seed(123)
+    random.seed(optimization_seed)
     before = datetime.now()
 
     with MultiprocessingEvaluator(em_model) as evaluator:

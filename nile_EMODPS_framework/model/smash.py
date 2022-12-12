@@ -8,6 +8,7 @@
 # REMAINING TASKS: i) Documentation ii) ANN code translation
 
 import numpy as np
+from array import array
 
 
 class Policy:
@@ -28,6 +29,9 @@ class Policy:
 
         if type == "ncRBF":
             self.functions[name] = ncRBF(n_inputs, n_outputs, kwargs)
+
+        elif type == "hedge_function":
+            self.functions[name] = HedgeFunction(n_inputs, n_outputs, kwargs)
 
         elif type == "user_specified":
             class_name = kwargs["class_name"]
@@ -50,7 +54,7 @@ class Policy:
         return sum([x.get_free_parameter_number() for x in self.functions.values()])
 
 
-class abstract_approximator:  # formerly abstract_approximator
+class AbstractApproximator:
     def __init__(self, argument_dictionary):
         # Will be removed at the end!!!
         # function input/output normalization
@@ -59,7 +63,7 @@ class abstract_approximator:  # formerly abstract_approximator
         self.input_min = argument_dictionary["min_input"]
         self.output_min = argument_dictionary["min_output"]
 
-    def get_output(input):
+    def get_output(self, inputs):
         pass
 
     def get_free_parameter_number(self):
@@ -100,10 +104,10 @@ class abstract_approximator:  # formerly abstract_approximator
             Normalized vector output
         """
 
-        Y = np.empty(0)
+        Y = array("f", [])
         for i in range(X.size):
             z = (X[i] - m[i]) / (M[i] - m[i])
-            Y = np.append(Y, z)
+            Y.append(z)
 
         return Y
 
@@ -127,10 +131,10 @@ class abstract_approximator:  # formerly abstract_approximator
             deNormalized vector output
         """
 
-        Y = np.empty(0)
-        for i in range(X.size):
+        Y = array("f", [])
+        for i in range(len(X)):
             z = X[i] * (M[i] - m[i]) + m[i]
-            Y = np.append(Y, z)
+            Y.append(z)
 
         return Y
 
@@ -190,19 +194,19 @@ class abstract_approximator:  # formerly abstract_approximator
 
 class RBFparams:
     def __init__(self):
-        self.c = np.empty(0)
-        self.b = np.empty(0)
-        self.w = np.empty(0)
+        self.c = array("f", [])
+        self.b = array("f", [])
+        self.w = array("f", [])
 
 
-class ncRBF(abstract_approximator):
+class ncRBF(AbstractApproximator):
     def __init__(self, n_inputs, n_outputs, argument_dictionary):
         # function input/output normalization
-        abstract_approximator.__init__(self, argument_dictionary)
+        AbstractApproximator.__init__(self, argument_dictionary)
         self.n_inputs = n_inputs
         self.n_outputs = n_outputs
         self.RBF_count = argument_dictionary["n_structures"]
-        self.lin_param = np.empty(0)
+        self.lin_param = array("f", [])
         self.param = list()
 
     def set_parameters(self, pTheta):
@@ -216,13 +220,13 @@ class ncRBF(abstract_approximator):
         for i in range(self.RBF_count):
             cParam = RBFparams()
             for j in range(self.n_inputs):
-                cParam.c = np.append(cParam.c, pTheta[count])
-                cParam.b = np.append(cParam.b, pTheta[count + 1])
+                cParam.c.append(pTheta[count])
+                cParam.b.append(pTheta[count + 1])
 
                 count = count + 2
 
             for k in range(self.n_outputs):
-                cParam.w = np.append(cParam.w, pTheta[count])
+                cParam.w.append(pTheta[count])
 
                 count += 1
             self.param.append(cParam)
@@ -230,17 +234,17 @@ class ncRBF(abstract_approximator):
     def clear_parameters(self):
 
         self.param = list()
-        self.lin_param = np.empty(0)
+        self.lin_param = array("f", [])
 
-    def get_output(self, input):
+    def get_output(self, inputs):
 
         # RBF
-        phi = np.empty(0)
+        phi = array("f", [])
         for j in range(self.RBF_count):
             bf = 0
             for i in range(self.n_inputs):
 
-                num = (input[i] - self.param[j].c[i]) ** 2
+                num = (inputs[i] - self.param[j].c[i]) ** 2
                 den = self.param[j].b[i] ** 2
 
                 if den < pow(10, -6):
@@ -248,10 +252,10 @@ class ncRBF(abstract_approximator):
 
                 bf = bf + num / den
 
-            phi = np.append(phi, np.exp(-bf))
+            phi.append(np.exp(-bf))
 
         # output
-        y = np.empty(0)
+        y = array("f", [])
 
         for k in range(self.n_outputs):
             o = self.lin_param[k]
@@ -264,9 +268,40 @@ class ncRBF(abstract_approximator):
             if o < 0:
                 o = 0.0
 
-            y = np.append(y, o)
+            y.append(o)
 
         return y
 
     def get_free_parameter_number(self):
         return self.n_outputs + self.RBF_count * (self.n_inputs * 2 + self.n_outputs)
+
+
+class HedgeFunction(AbstractApproximator):
+    def __init__(self, n_inputs, n_outputs, argument_dictionary):
+
+        self.n_inputs = n_inputs
+        self.n_outputs = n_outputs
+        self.h_param_max = argument_dictionary["h_param_max"]
+        self.h_param = float()
+        self.m_param = float()
+        self.param = list()
+
+    def set_parameters(self, params):
+        self.h_param = params[0]
+        self.m_param = params[1]
+
+    def get_free_parameter_number(self):
+        return 2
+
+    def get_output(self, inputs):
+        flow = inputs[0]
+        demand = inputs[1]
+        h_denormalized = self.h_param * self.h_param_max
+
+        if flow < h_denormalized:
+            y = min(flow, demand * (flow / h_denormalized)**self.m_param)
+
+        else:
+            y = min(flow, demand)
+
+        return y

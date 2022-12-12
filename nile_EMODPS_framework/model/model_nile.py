@@ -1,10 +1,13 @@
 # Model class
 
 # Importing libraries for functionality
+import os
+
 import numpy as np
 import pandas as pd
 import networkx as nx
 from collections import deque
+from array import array
 
 # Importing classes to generate the model
 from .model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
@@ -34,12 +37,13 @@ class ModelNile:
         self.policies = None
         self.topology_data = None
         self.reservoir_parameters = None
-        self.decision_list = list()  # Store release decision dicts at each step
+        # self.decision_list = list()  # Store release decision dicts at each step
         self.synthetic_hydrology = list()
+        self.read_synthetic_hydrology("baseline")
         self.total_seconds_per_month = np.empty(0)
         self.total_hours_per_month = np.empty(0)
         self.integ_steps_per_month = np.empty(0)
-        self.read_settings_file("../settings/settings_file_Nile.xlsx")
+        self.read_settings_file("../settings/settings_file_Nile_with_icons.xlsm")
 
         # Generate model topology as a NetworkX object:
         self.model_topology = nx.DiGraph()  # Directed graph (direction of flow)
@@ -61,12 +65,20 @@ class ModelNile:
             if not self.model_topology.has_node(network_id):
                 self.model_topology.add_node(network_id, obj=obj, obj_type=obj_type)
             else:
-                self.model_topology.nodes[network_id]["obj"] = obj  # Python object as node attribute
-                self.model_topology.nodes[network_id]["obj_type"] = obj_type  # CONSIDER REMOVING!
+                self.model_topology.nodes[network_id][
+                    "obj"
+                ] = obj  # Python object as node attribute
+                self.model_topology.nodes[network_id][
+                    "obj_type"
+                ] = obj_type  # CONSIDER REMOVING!
 
             try:
-                my_link = int(row["Outgoing Nodes"])  # Reads the Node ID of the object it is connected to
-                delay = row["Delay"]  # Delay (in decision steps) between this node and the next one.
+                my_link = int(
+                    row["Outgoing Nodes"]
+                )  # Reads the Node ID of the object it is connected to
+                delay = row[
+                    "Delay"
+                ]  # Delay (in decision steps) between this node and the next one.
 
                 # Each edge on the network stores a dynamic flow value. The data structure used for storage
                 # is deque. For the edges that have a delay, deque allows us to convey the older value to the
@@ -74,7 +86,7 @@ class ModelNile:
                 initial_deque = list()
                 if delay > 0:  # Initialization of delayed reach of water to a node
                     initial_deque = eval(row["Initial for Delay"])
-                flow_storage = deque(initial_deque, maxlen=delay+1)
+                flow_storage = deque(initial_deque, maxlen=delay + 1)
 
                 self.model_topology.add_edge(
                     network_id, my_link, delay=delay, flow=flow_storage
@@ -90,9 +102,7 @@ class ModelNile:
             initial_storage = float(
                 self.reservoir_parameters.loc[reservoir.name, "Initial Storage(m3)"]
             )
-            reservoir.storage_vector = np.append(
-                reservoir.storage_vector, initial_storage
-            )
+            reservoir.storage_vector.append(initial_storage)
 
             # Set hydropower production parameters (based on Excel settings)
             variable_names_raw = self.reservoir_parameters.columns[-4:].values.tolist()
@@ -130,16 +140,15 @@ class ModelNile:
         input_parameters = [kwargs["v" + str(i)] for i in range(lever_count)]
 
         (
-            egypt_irr,
-            egypt_90,
-            egypt_low_had,
-            sudan_irr,
-            sudan_90,
+            egypt_def,
+            min_HAD,
+            sudan_def,
             ethiopia_hydro,
         ) = self.evaluate(
             np.array(input_parameters)
-        )  # , uncertainty_parameters
-        return egypt_irr, egypt_90, egypt_low_had, sudan_irr, sudan_90, ethiopia_hydro
+        )
+
+        return egypt_def, min_HAD, sudan_def, ethiopia_hydro
 
     def evaluate(self, parameter_vector):
         """Evaluate the KPI values based on given input
@@ -161,9 +170,12 @@ class ModelNile:
         """
 
         self.overarching_policy.assign_free_parameters(parameter_vector)
+
         objectives = ["egypt_def", "min_HAD", "sudan_def", "ethiopia_hydro"]
-        objective_values = {objective: np.empty(0) for objective in objectives}
+        objective_values = {objective: array("f", []) for objective in objectives}
+
         for realization in self.synthetic_hydrology:
+
             self.assign_streamflow_to_catchments(realization)
             self.reset_parameters()
             self.simulate()
@@ -195,15 +207,13 @@ class ModelNile:
             ) / (20 * 1e6)
 
             for objective in objectives:
-                objective_values[objective] = np.append(
-                    objective_values[objective], locals()[objective]
-                )
+                objective_values[objective].append(locals()[objective])
 
         return (
             np.mean(objective_values["egypt_def"]),
             np.mean(objective_values["min_HAD"]),
             np.mean(objective_values["sudan_def"]),
-            np.mean(objective_values["ethiopia_hydro"])
+            np.mean(objective_values["ethiopia_hydro"]),
         )
 
     def simulate(self):
@@ -241,7 +251,7 @@ class ModelNile:
                 for index, reservoir in enumerate(self.objects_by_class("Reservoir"))
             }
 
-            self.decision_list.append(decision_dict)
+            #self.decision_list.append(decision_dict)
 
             # Roll-over the model topology to calculate the mass-balances automatically
             for node_id, obj in self.model_topology.nodes(data="obj"):
@@ -256,6 +266,11 @@ class ModelNile:
                         )
                     ]
                     total_inflow = sum(inflows)
+                    # To account for channel losses, we assume a five percent evaporation
+                    # after the Atbara river joins the main Nile; hence, a drop in Hassanab
+                    # inflow by 5 percent
+                    if obj.name == "Hassanab":
+                        total_inflow *= 0.95
 
                 object_type = type(obj).__name__
 
@@ -280,24 +295,20 @@ class ModelNile:
                             )
                         )
 
-                        obj.hydroenergy_produced = np.append(
-                            obj.hydroenergy_produced, hydroenergy_production
-                        )
+                        obj.hydroenergy_produced.append(hydroenergy_production)
                     except AttributeError:  # If there is no hydropower on the reservoir
                         pass
 
                 elif object_type == "IrrigationDistrict":
-                    obj.incoming_flow = np.append(obj.incoming_flow, total_inflow)
-                    received_flow = min(total_inflow, obj.demand[t])
-                    obj.received_flow = np.append(obj.received_flow, received_flow)
+                    obj.incoming_flow.append(total_inflow)
+                    if obj.name != "Egypt":
+                        received_flow = self.overarching_policy.functions[f"hedging_{obj.name}"].get_output([total_inflow, obj.demand[t]])
+                    else:
+                        received_flow = min(total_inflow, obj.demand[t])
+                    obj.received_flow.append(received_flow)
                     outflow = total_inflow - received_flow
                     # Monthly deficit in m3/s:
-                    obj.deficit = np.append(
-                        obj.deficit,
-                        self.deficit_from_target(
-                            received_flow, obj.demand[t]
-                        ),
-                    )
+                    obj.deficit.append(self.deficit_from_target(received_flow, obj.demand[t]))
 
                 try:
                     outflow_deque = list(
@@ -329,14 +340,21 @@ class ModelNile:
                 "level_vector",
                 "release_vector",
                 "hydroenergy_produced",
+                "inflow_vector"
             ]
             for var in attributes:
-                setattr(reservoir, var, np.empty(0))
+                setattr(reservoir, var, array("f", []))
 
         for irr_district in self.objects_by_class("IrrigationDistrict"):
             attributes = ["received_flow", "deficit", "incoming_flow"]
             for var in attributes:
-                setattr(irr_district, var, np.empty(0))
+                setattr(irr_district, var, array("f", []))
+
+        # We need to reset the delayed flow, so that the node next to it
+        # doesn't use the value remaining from the previous run:
+        # From Merowe (13) to HAD (14) (Could have been nicer, conditioned on
+        # input Excel but I'm moving forward with this one now!)
+        self.model_topology[13][14]["flow"] = deque([1459.1], maxlen=2)
 
     def read_settings_file(self, filepath):
 
@@ -352,13 +370,20 @@ class ModelNile:
             setattr(self, name, value)
 
         def return_integ_step(total_seconds, verbal_step, nu_days):
-            if verbal_step == "once-a-month": step = total_seconds
-            elif verbal_step == "weekly": step = total_seconds / 4
-            elif verbal_step == "daily": step = total_seconds / nu_days
-            elif verbal_step == "12-hours": step = total_seconds / (nu_days * 2)
-            elif verbal_step == "6-hours": step = total_seconds / (nu_days * 4)
-            elif verbal_step == "hourly": step = total_seconds / (nu_days * 24)
-            elif verbal_step == "half-an-hour": step = total_seconds / (nu_days * 48)
+            if verbal_step == "once-a-month":
+                step = total_seconds
+            elif verbal_step == "weekly":
+                step = total_seconds / 4
+            elif verbal_step == "daily":
+                step = total_seconds / nu_days
+            elif verbal_step == "12-hours":
+                step = total_seconds / (nu_days * 2)
+            elif verbal_step == "6-hours":
+                step = total_seconds / (nu_days * 4)
+            elif verbal_step == "hourly":
+                step = total_seconds / (nu_days * 24)
+            elif verbal_step == "half-an-hour":
+                step = total_seconds / (nu_days * 48)
 
             return step
 
@@ -366,16 +391,14 @@ class ModelNile:
             total_hours = nu_days * 24
             total_seconds = total_hours * 3600
             self.total_hours_per_month = np.append(
-                self.total_hours_per_month,
-                total_hours
+                self.total_hours_per_month, total_hours
             )
             self.total_seconds_per_month = np.append(
-                self.total_seconds_per_month,
-                total_seconds
+                self.total_seconds_per_month, total_seconds
             )
             self.integ_steps_per_month = np.append(
                 self.integ_steps_per_month,
-                return_integ_step(total_seconds, self.integration_interval, nu_days)
+                return_integ_step(total_seconds, self.integration_interval, nu_days),
             )
 
         self.topology_data = pd.read_excel(filepath, sheet_name="Topology")
@@ -387,6 +410,7 @@ class ModelNile:
         self.policies = list()
         full_df = pd.read_excel(filepath, sheet_name="PolicyParameters")
         split_points = list(full_df.loc[full_df["Parameter Name"] == "Name"].index)
+
         for i in range(len(split_points)):
             try:
                 one_policy = full_df.iloc[split_points[i]: split_points[i + 1], :]
@@ -429,5 +453,12 @@ class ModelNile:
             raise NameError("Asked object name doesn't exist")
 
     def assign_streamflow_to_catchments(self, flow_df):
-        pass
+        for catchment in self.objects_by_class("Catchment"):
+            catchment.streamflow = np.array(flow_df[catchment.name])
 
+    def read_synthetic_hydrology(self, scenario_folder):
+        directory = f"../synthetic_hydrology/{scenario_folder}"
+        list_of_files = [file for file in os.listdir(directory) if file[-4:] == ".csv"]
+        for realization in list_of_files:
+            hydro_df = pd.read_csv(f"{directory}/{realization}")
+            self.synthetic_hydrology.append(hydro_df)
