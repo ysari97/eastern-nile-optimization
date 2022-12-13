@@ -11,7 +11,7 @@ from datetime import datetime
 
 
 from ema_workbench import RealParameter, ScalarOutcome, Constant, Model
-from ema_workbench import MultiprocessingEvaluator, SequentialEvaluator, ema_logging
+from ema_workbench import MultiprocessingEvaluator, SequentialEvaluator, ema_logging, IpyparallelEvaluator
 from ema_workbench.em_framework.optimization import (
     EpsilonProgress,
     ArchiveLogger,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     random.seed(optimization_seed)
     before = datetime.now()
 
-    with MultiprocessingEvaluator(em_model) as evaluator:
+    with IpyparallelEvaluator(em_model) as evaluator:
         results, convergence = evaluator.optimize(
             nfe=nfe,
             searchover="levers",
