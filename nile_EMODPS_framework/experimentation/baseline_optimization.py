@@ -77,7 +77,7 @@ if __name__ == "__main__":
         ),
     ]
 
-    nfe = 100
+    nfe = 300000
     epsilon_list = [1e-1, 1e-1, 1e-1, 1e-1]
 
     random.seed(optimization_seed)
