@@ -134,11 +134,9 @@ class ModelNile:
         # As the policies are initialised, we delete this list from memory
         del self.policies
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args):
 
-        lever_count = self.overarching_policy.get_total_parameter_count()
-        input_parameters = [kwargs["v" + str(i)] for i in range(lever_count)]
-
+        input_parameters = args
         (
             egypt_def,
             min_HAD,
