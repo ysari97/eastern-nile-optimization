@@ -10,8 +10,8 @@ from collections import deque
 from array import array
 
 # Importing classes to generate the model
-from .model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
-from .smash import Policy
+from model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
+from smash import Policy
 
 
 class ModelNile:
@@ -43,7 +43,7 @@ class ModelNile:
         self.total_seconds_per_month = np.empty(0)
         self.total_hours_per_month = np.empty(0)
         self.integ_steps_per_month = np.empty(0)
-        self.read_settings_file("../settings/settings_file_Nile_with_icons.xlsm")
+        self.read_settings_file("../../settings/settings_file_Nile_with_icons.xlsm")
 
         # Generate model topology as a NetworkX object:
         self.model_topology = nx.DiGraph()  # Directed graph (direction of flow)
@@ -134,19 +134,19 @@ class ModelNile:
         # As the policies are initialised, we delete this list from memory
         del self.policies
 
-    def __call__(self, *args):
-
-        input_parameters = args
-        (
-            egypt_def,
-            min_HAD,
-            sudan_def,
-            ethiopia_hydro,
-        ) = self.evaluate(
-            np.array(input_parameters)
-        )
-
-        return egypt_def, min_HAD, sudan_def, ethiopia_hydro
+    # def __call__(self, *args):
+    #
+    #     input_parameters = args
+    #     (
+    #         egypt_def,
+    #         min_HAD,
+    #         sudan_def,
+    #         ethiopia_hydro,
+    #     ) = self.evaluate(
+    #         np.array(input_parameters)
+    #     )
+    #
+    #     return egypt_def, min_HAD, sudan_def, ethiopia_hydro
 
     def evaluate(self, parameter_vector):
         """Evaluate the KPI values based on given input
@@ -455,7 +455,7 @@ class ModelNile:
             catchment.streamflow = np.array(flow_df[catchment.name])
 
     def read_synthetic_hydrology(self, scenario_folder):
-        directory = f"../synthetic_hydrology/{scenario_folder}"
+        directory = f"../../synthetic_hydrology/{scenario_folder}"
         list_of_files = [file for file in os.listdir(directory) if file[-4:] == ".csv"]
         for realization in list_of_files:
             hydro_df = pd.read_csv(f"{directory}/{realization}")

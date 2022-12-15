@@ -118,7 +118,7 @@ class Configuration:
                     Configuration.stdcall = True
         elif os.name == "posix":
             try:
-                Configuration.libborg = CDLL("./libborg.so")
+                Configuration.libborg = CDLL("./libborgms.so")
                 Configuration.stdcall = False
             except OSError:
                 return
@@ -198,21 +198,28 @@ class Configuration:
                     raise OSError("Unable to locate the parallel Borg MOEA C library")
 
         # The following line is needed to load the MPI library correctly
-        CDLL("libmpi.so.0", RTLD_GLOBAL)
+        CDLL("libpmi2.so", RTLD_GLOBAL)
 
         # Pass the command-line arguments to MPI_Init
         argc = c_int(len(sys.argv))
         CHARPP = c_char_p * len(sys.argv)
         argv = CHARPP()
+        
+        # full_path = [bytes(arg, 'latin-1') for arg in sys.argv]
 
         for i in range(len(sys.argv)):
-            argv[i] = sys.argv[i]
+            casted_arg = cast(sys.argv[i], c_char_p)
+            print(casted_arg, flush=True)
+            argv[i] = sys.argv[i].encode('utf-8')
+        print("After argv for loop", flush=True)
 
         Configuration.libborg.BORG_Algorithm_ms_startup(
             cast(addressof(argc), POINTER(c_int)),
             cast(addressof(argv), POINTER(CHARPP)))
+        print("Last check in startMPI", flush=True)
 
         Configuration.startedMPI = True
+        
 
     @staticmethod
     def stopMPI():
@@ -349,6 +356,10 @@ class Borg:
         """
 
         if len(args) != self.numberOfVariables:
+            print("Correct n of vars:", self.numberOfVariables, flush=True)
+            print("lenargs:", len(args), flush=True)
+            print("type args: ", type(args), flush=True)
+
             raise ValueError("Incorrect number of bounds specified")
 
         for i in range(self.numberOfVariables):
@@ -729,7 +740,7 @@ def _functionWrapper(function, numberOfVariables, numberOfObjectives, numberOfCo
         """
         global terminate
         try:
-            result = function(*[v[i] for i in range(numberOfVariables)])
+            result = function([v[i] for i in range(numberOfVariables)])
             objectives = None
             constraints = None
 

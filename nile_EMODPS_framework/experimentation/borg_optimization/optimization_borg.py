@@ -10,10 +10,11 @@ from datetime import datetime
 
 from borg import *
 
-module_path = os.path.abspath(os.path.join("../.."))
+module_path = os.path.abspath(os.path.join("../../model"))
 if module_path not in sys.path:
     sys.path.append(module_path)
-from model.model_nile import ModelNile
+from model_nile import ModelNile
+from model_wrapper import nile_wrapper
 
 # set max time in hours
 maxtime = 12
@@ -23,7 +24,9 @@ random_seed = 10
 Configuration.seed(random_seed)
 
 # need to start up MPI first
+print("Before start MPI")
 Configuration.startMPI()
+print("After startMPI")
 
 nile_model = ModelNile()
 total_parameter_count = nile_model.overarching_policy.get_total_parameter_count()
@@ -53,14 +56,17 @@ for j in range(release_parameter_count, total_parameter_count):
     lever_list.append([0, 1])
 
 # create an instance of Borg with the Nile problem
-borg = Borg(total_parameter_count, 4, 0, ModelNile, directions=[0,1,0,1])
+borg = Borg(total_parameter_count, 4, 0, nile_wrapper, directions=[0,1,0,1])
 
-borg.setBounds(lever_list)
+borg.setBounds(*lever_list)
 borg.setEpsilons(0.1, 0.1, 0.1, 0.1)
 
 # perform the optimization
 nfes = 50000
+print("Just before solveMPI", flush=True)
 result = borg.solveMPI(maxTime=maxtime, maxEvaluations=nfes)
+print("Just after solveMPI", flush=True)
+
 
 # shut down MPI
 Configuration.stopMPI()
