@@ -29,5 +29,7 @@ for j in range(release_parameter_count, total_parameter_count):
     lever_list.append([0, 1])
 
 def nile_wrapper(decision_variables):
-    return nile_model.evaluate(decision_variables)
+    objectives = nile_model.evaluate(decision_variables)
+    print(objectives, flush=True)
+    return list(objectives)
     

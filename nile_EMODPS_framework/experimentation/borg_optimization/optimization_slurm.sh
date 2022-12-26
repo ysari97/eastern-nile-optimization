@@ -2,10 +2,10 @@
 #
 #SBATCH --job-name="python_nile_opt"
 #SBATCH --partition=compute
-#SBATCH --time=00:01:00
-#SBATCH --nodes=2
+#SBATCH --time=06:00:00
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=24
 #SBATCH --mem-per-cpu=1G
 #SBATCH --account=research-tpm-mas
 #SBATCH --output=borg_initial.out

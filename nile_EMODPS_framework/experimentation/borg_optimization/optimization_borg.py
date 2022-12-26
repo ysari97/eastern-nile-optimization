@@ -62,7 +62,7 @@ borg.setBounds(*lever_list)
 borg.setEpsilons(0.1, 0.1, 0.1, 0.1)
 
 # perform the optimization
-nfes = 50000
+nfes = 10000
 print("Just before solveMPI", flush=True)
 result = borg.solveMPI(maxTime=maxtime, maxEvaluations=nfes)
 print("Just after solveMPI", flush=True)
