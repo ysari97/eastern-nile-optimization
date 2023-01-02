@@ -40,7 +40,7 @@ static char name[256];
 /* MPI master variables */
 static BORG_Solution* processing = NULL;
 static BORG_Queue queue = NULL;
-static int runtimeFrequency = 100;
+static int runtimeFrequency = 1000;
 static char* runtimeFilename = NULL;
 static char* timingFilename = NULL;
 static FILE* timing = NULL;

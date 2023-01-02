@@ -93,7 +93,8 @@ class ModelNile:
                 )
 
             except ValueError:  # This happens when Outgoing Nodes cannot be cast to int
-                print(f"Network node of {obj_type} {row['Name']} is a sink")
+                pass
+                # print(f"Network node of {obj_type} {row['Name']} is a sink")
 
         # Initialize some features of reservoirs (dam min/max levels, hydropower parameters) from the settings file:
         for reservoir in self.objects_by_class("Reservoir"):

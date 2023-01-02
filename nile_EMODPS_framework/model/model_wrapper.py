@@ -30,6 +30,6 @@ for j in range(release_parameter_count, total_parameter_count):
 
 def nile_wrapper(decision_variables):
     objectives = nile_model.evaluate(decision_variables)
-    print(objectives, flush=True)
+    # print(objectives, flush=True)
     return list(objectives)
     

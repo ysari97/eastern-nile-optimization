@@ -17,16 +17,17 @@ from model_nile import ModelNile
 from model_wrapper import nile_wrapper
 
 # set max time in hours
-maxtime = 12
+maxtime = 16
 
 random_seed = 10
 
 Configuration.seed(random_seed)
 
+# print("BEFORE STARTMPI", flush=True)
 # need to start up MPI first
-print("Before start MPI")
 Configuration.startMPI()
-print("After startMPI")
+
+# print("AFTER STARTMPI", flush=True)
 
 nile_model = ModelNile()
 total_parameter_count = nile_model.overarching_policy.get_total_parameter_count()
@@ -62,11 +63,8 @@ borg.setBounds(*lever_list)
 borg.setEpsilons(0.1, 0.1, 0.1, 0.1)
 
 # perform the optimization
-nfes = 10000
-print("Just before solveMPI", flush=True)
-result = borg.solveMPI(maxTime=maxtime, maxEvaluations=nfes)
-print("Just after solveMPI", flush=True)
-
+nfes = 250000
+result = borg.solveMPI(maxTime=maxtime, maxEvaluations=nfes, runtime=f"runtime/runtime_seed_{random_seed}.txt".encode('utf-8'))
 
 # shut down MPI
 Configuration.stopMPI()
@@ -75,15 +73,19 @@ Configuration.stopMPI()
 # print the objectives to output
 solution_list = []
 objectives_list = []
+# print(type(result), flush=True)
 if result:
     for solution in result:
         solution_list.append(solution.getVariables())
         objectives_list.append(solution.getObjectives())
+        # print(solution.getObjectives(), flush=True)
 
-d_vars = pd.DataFrame(solution_list, columns=[f"v{i}" for i in range(total_parameter_count)])
-objs = pd.DataFrame(objectives_list, columns=["Egypt_irr_def", "HAD_min_level", "Sudan_irr_def", "Ethiopia_hydroenergy"])
+# print(objectives_list, flush=True)
+if len(solution_list) > 0:
+    d_vars = pd.DataFrame(solution_list, columns=[f"v{i}" for i in range(total_parameter_count)])
+    objs = pd.DataFrame(objectives_list, columns=["Egypt_irr_def", "HAD_min_level", "Sudan_irr_def", "Ethiopia_hydroenergy"])
 
-output_directory = "../../outputs/"
+    output_directory = "../../outputs/"
 
-d_vars.to_csv(f"{output_directory}baseline_opt_dvs.csv")
-d_vars.to_csv(f"{output_directory}baseline_opt_objs.csv")
+    d_vars.to_csv(f"{output_directory}baseline_opt_dvs.csv")
+    objs.to_csv(f"{output_directory}baseline_opt_objs.csv")

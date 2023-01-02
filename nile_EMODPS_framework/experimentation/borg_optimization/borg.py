@@ -208,10 +208,8 @@ class Configuration:
         # full_path = [bytes(arg, 'latin-1') for arg in sys.argv]
 
         for i in range(len(sys.argv)):
-            casted_arg = cast(sys.argv[i], c_char_p)
-            print(casted_arg, flush=True)
             argv[i] = sys.argv[i].encode('utf-8')
-        print("After argv for loop", flush=True)
+        # print("After argv for loop", flush=True)
 
         Configuration.libborg.BORG_Algorithm_ms_startup(
             cast(addressof(argc), POINTER(c_int)),

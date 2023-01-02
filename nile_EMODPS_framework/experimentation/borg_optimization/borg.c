@@ -1714,14 +1714,6 @@ void BORG_Archive_append(BORG_Archive archive, FILE* file) {
 			size++;
 		}
 
-		for (j=0; j<solution->problem->numberOfVariables; j++) {
-			if (j > 0) {
-				fprintf(file, " ");
-			}
-
-			fprintf(file, "%0.17g", solution->variables[j]);
-		}
-
 		for (j=0; j<solution->problem->numberOfObjectives; j++) {
 			if (j > 0 || solution->problem->numberOfVariables > 0) {
 				fprintf(file, " ");
