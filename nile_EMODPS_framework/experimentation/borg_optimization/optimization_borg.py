@@ -8,7 +8,7 @@ import random
 
 from datetime import datetime
 
-from borg import *
+from borg_files.borg import *
 
 module_path = os.path.abspath(os.path.join("../../model"))
 if module_path not in sys.path:
@@ -31,7 +31,9 @@ Configuration.startMPI()
 
 nile_model = ModelNile()
 total_parameter_count = nile_model.overarching_policy.get_total_parameter_count()
-release_parameter_count = nile_model.overarching_policy.functions["release"].get_free_parameter_number()
+release_parameter_count = nile_model.overarching_policy.functions[
+    "release"
+].get_free_parameter_number()
 n_inputs_release = nile_model.overarching_policy.functions["release"].n_inputs
 n_outputs_release = nile_model.overarching_policy.functions["release"].n_outputs
 RBF_count = nile_model.overarching_policy.functions["release"].RBF_count
@@ -57,14 +59,18 @@ for j in range(release_parameter_count, total_parameter_count):
     lever_list.append([0, 1])
 
 # create an instance of Borg with the Nile problem
-borg = Borg(total_parameter_count, 4, 0, nile_wrapper, directions=[0,1,0,1])
+borg = Borg(total_parameter_count, 4, 0, nile_wrapper, directions=[0, 1, 0, 1])
 
 borg.setBounds(*lever_list)
 borg.setEpsilons(0.1, 0.1, 0.1, 0.1)
 
 # perform the optimization
 nfes = 250000
-result = borg.solveMPI(maxTime=maxtime, maxEvaluations=nfes, runtime=f"runtime/runtime_seed_{random_seed}.txt".encode('utf-8'))
+result = borg.solveMPI(
+    maxTime=maxtime,
+    maxEvaluations=nfes,
+    runtime=f"runtime/runtime_seed_{random_seed}.txt".encode("utf-8"),
+)
 
 # shut down MPI
 Configuration.stopMPI()
@@ -82,8 +88,18 @@ if result:
 
 # print(objectives_list, flush=True)
 if len(solution_list) > 0:
-    d_vars = pd.DataFrame(solution_list, columns=[f"v{i}" for i in range(total_parameter_count)])
-    objs = pd.DataFrame(objectives_list, columns=["Egypt_irr_def", "HAD_min_level", "Sudan_irr_def", "Ethiopia_hydroenergy"])
+    d_vars = pd.DataFrame(
+        solution_list, columns=[f"v{i}" for i in range(total_parameter_count)]
+    )
+    objs = pd.DataFrame(
+        objectives_list,
+        columns=[
+            "Egypt_irr_def",
+            "HAD_min_level",
+            "Sudan_irr_def",
+            "Ethiopia_hydroenergy",
+        ],
+    )
 
     output_directory = "../../outputs/"
 

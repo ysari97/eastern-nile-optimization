@@ -193,7 +193,9 @@ class Reservoir:
         # self.total_evap = np.empty(0)
 
     def storage_to_level(self, s):
-        return modified_interp(s, self.storage_to_level_rel[0], self.storage_to_level_rel[1])
+        return modified_interp(
+            s, self.storage_to_level_rel[0], self.storage_to_level_rel[1]
+        )
 
     def storage_to_surface(self, s):
         return modified_interp(
@@ -208,7 +210,9 @@ class Reservoir:
 
         minimum_index = max(bisect_right(self.storage_to_minmax_rel[0], s), 1)
         minimum_cons = self.storage_to_minmax_rel[1][minimum_index - 1]
-        maximum_cons = modified_interp(s, self.storage_to_minmax_rel[0], self.storage_to_minmax_rel[2])
+        maximum_cons = modified_interp(
+            s, self.storage_to_minmax_rel[0], self.storage_to_minmax_rel[2]
+        )
 
         return minimum_cons, maximum_cons
 
@@ -253,12 +257,7 @@ class Reservoir:
             secondly_release = min(
                 max_possible_release, max(min_possible_release, policy_release_decision)
             )
-            # if secondly_release == min_possible_release:
-            #     self.constraint_check.append(("Hit LB", secondly_release, level))
-            # elif secondly_release == max_possible_release:
-            #     self.constraint_check.append(("Hit UB", secondly_release, level))
-            # else:
-            #     self.constraint_check.append("Smooth release")
+
             in_month_releases.append(secondly_release)
 
             total_addition = net_secondly_inflow * integ_step

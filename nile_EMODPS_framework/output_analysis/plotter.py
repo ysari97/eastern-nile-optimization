@@ -74,6 +74,7 @@ dam_color = {
     "GERD": country_color["Ethiopia"],
     "Roseires": country_color["Sudan"],
     "Sennar": country_color["Sudan-2"],
+    "Merowe": country_color["Sudan-2"],
     "HAD": country_color["Egypt"],
 }
 
@@ -105,20 +106,18 @@ def parallel_plots_many_policies(
     solution_names=[],
     names_display=[
         "Egypt Irr. Deficit",
-        "Egypt 90$^{th}$ Irr. Deficit",
-        "Egypt Low HAD",
+        "Egypt Minimum HAD Level",
         "Sudan Irr. Deficit",
-        "Sudan 90$^{th}$ Irr. Deficit",
         "Ethiopia Hydropower",
     ],
-    units=["BCM/year", "BCM/month", "%", "BCM/year", "BCM/month", "TWh/year"],
-    directions=["min", "min", "min", "min", "min", "max"],
+    units=["BCM/year", "masl", "BCM/year", "TWh/year"],
+    directions=["min", "max", "min", "max"],
 ):
 
     names = list(obj_df.columns)
 
     objectives_df = obj_df.copy()
-    objectives_df.egypt_low_had = 100 * (objectives_df.egypt_low_had)
+    # objectives_df.egypt_low_had = 100 * (objectives_df.egypt_low_had)
 
     norm_df, desirability_couples = normalize_objs(objectives_df, directions)
 

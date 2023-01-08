@@ -299,7 +299,7 @@ class HedgeFunction(AbstractApproximator):
         h_denormalized = self.h_param * self.h_param_max
 
         if flow < h_denormalized:
-            y = min(flow, demand * (flow / h_denormalized)**self.m_param)
+            y = min(flow, demand * (flow / h_denormalized) ** self.m_param)
 
         else:
             y = min(flow, demand)

@@ -13,6 +13,9 @@ from array import array
 from model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
 from smash import Policy
 
+dir_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+settings_path = os.path.join(dir_path, "../settings/settings_file_Nile_with_icons.xlsm")
+
 
 class ModelNile:
     """
@@ -43,7 +46,7 @@ class ModelNile:
         self.total_seconds_per_month = np.empty(0)
         self.total_hours_per_month = np.empty(0)
         self.integ_steps_per_month = np.empty(0)
-        self.read_settings_file("../../settings/settings_file_Nile_with_icons.xlsm")
+        self.read_settings_file(settings_path)
 
         # Generate model topology as a NetworkX object:
         self.model_topology = nx.DiGraph()  # Directed graph (direction of flow)
@@ -134,20 +137,6 @@ class ModelNile:
 
         # As the policies are initialised, we delete this list from memory
         del self.policies
-
-    # def __call__(self, *args):
-    #
-    #     input_parameters = args
-    #     (
-    #         egypt_def,
-    #         min_HAD,
-    #         sudan_def,
-    #         ethiopia_hydro,
-    #     ) = self.evaluate(
-    #         np.array(input_parameters)
-    #     )
-    #
-    #     return egypt_def, min_HAD, sudan_def, ethiopia_hydro
 
     def evaluate(self, parameter_vector):
         """Evaluate the KPI values based on given input
@@ -250,7 +239,7 @@ class ModelNile:
                 for index, reservoir in enumerate(self.objects_by_class("Reservoir"))
             }
 
-            #self.decision_list.append(decision_dict)
+            # self.decision_list.append(decision_dict)
 
             # Roll-over the model topology to calculate the mass-balances automatically
             for node_id, obj in self.model_topology.nodes(data="obj"):
@@ -301,13 +290,17 @@ class ModelNile:
                 elif object_type == "IrrigationDistrict":
                     obj.incoming_flow.append(total_inflow)
                     if obj.name != "Egypt":
-                        received_flow = self.overarching_policy.functions[f"hedging_{obj.name}"].get_output([total_inflow, obj.demand[t]])
+                        received_flow = self.overarching_policy.functions[
+                            f"hedging_{obj.name}"
+                        ].get_output([total_inflow, obj.demand[t]])
                     else:
                         received_flow = min(total_inflow, obj.demand[t])
                     obj.received_flow.append(received_flow)
                     outflow = total_inflow - received_flow
                     # Monthly deficit in m3/s:
-                    obj.deficit.append(self.deficit_from_target(received_flow, obj.demand[t]))
+                    obj.deficit.append(
+                        self.deficit_from_target(received_flow, obj.demand[t])
+                    )
 
                 try:
                     outflow_deque = list(
@@ -339,7 +332,7 @@ class ModelNile:
                 "level_vector",
                 "release_vector",
                 "hydroenergy_produced",
-                "inflow_vector"
+                "inflow_vector",
             ]
             for var in attributes:
                 setattr(reservoir, var, array("f", []))
@@ -412,9 +405,9 @@ class ModelNile:
 
         for i in range(len(split_points)):
             try:
-                one_policy = full_df.iloc[split_points[i]: split_points[i + 1], :]
+                one_policy = full_df.iloc[split_points[i] : split_points[i + 1], :]
             except IndexError:
-                one_policy = full_df.iloc[split_points[i]:, :]
+                one_policy = full_df.iloc[split_points[i] :, :]
             input_dict = dict()
 
             for _, row in one_policy.iterrows():

@@ -5,6 +5,7 @@ import os
 
 def cholesky_extended(input_matrix):
     from scipy.linalg import cholesky, eig
+
     input_matrix = np.nan_to_num(input_matrix, nan=1e-6)
 
     try:
@@ -164,5 +165,10 @@ if __name__ == "__main__":
     catchments_2 = ["Rahad", "Dinder"]
 
     for realization in range(30):
-        multi_site_nile_generator([catchments_1, catchments_2], 20, [realization, 100 + realization], realization,
-                                  "baseline")
+        multi_site_nile_generator(
+            [catchments_1, catchments_2],
+            20,
+            [realization, 100 + realization],
+            realization,
+            "baseline",
+        )
