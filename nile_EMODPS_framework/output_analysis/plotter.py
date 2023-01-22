@@ -141,11 +141,11 @@ def parallel_plots_many_policies(
         "Name",
         color=[
             theme_colors["gray"],
-            theme_colors["green"],
+            theme_colors["blue"],
             theme_colors["plum"],
             theme_colors["purple"],
-            theme_colors["chocolate"],
             theme_colors["yellow"],
+            theme_colors["green"],
             theme_colors["blue"],
             "red",
         ],
@@ -157,11 +157,11 @@ def parallel_plots_many_policies(
     labels = ["All Solutions"] + solution_names
 
     plt.legend(
-        flip([handles_dict[label] for label in labels], 4),
-        flip(labels, 4),
+        flip([handles_dict[label] for label in labels], 3),
+        flip(labels, 3),
         bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
         loc=3,
-        ncol=4,
+        ncol=3,
         mode="expand",
         borderaxespad=1.5,
         fontsize=22,

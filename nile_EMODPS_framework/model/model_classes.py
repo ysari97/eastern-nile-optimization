@@ -3,7 +3,7 @@ import os
 from scipy.constants import g
 from array import array
 from bisect import bisect_right
-from utils import modified_interp
+from .utils import modified_interp
 
 dir_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 data_directory = os.path.join(dir_path, "../data/")

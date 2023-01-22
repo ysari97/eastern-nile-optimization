@@ -2,6 +2,7 @@
 
 # Importing libraries for functionality
 import os
+import copy
 
 import numpy as np
 import pandas as pd
@@ -10,8 +11,8 @@ from collections import deque
 from array import array
 
 # Importing classes to generate the model
-from model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
-from smash import Policy
+from .model_classes import Reservoir, Catchment, IrrigationDistrict, HydropowerPlant
+from .smash import Policy
 
 dir_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 settings_path = os.path.join(dir_path, "../settings/settings_file_Nile_with_icons.xlsm")
@@ -162,7 +163,10 @@ class ModelNile:
         objectives = ["egypt_def", "min_HAD", "sudan_def", "ethiopia_hydro"]
         objective_values = {objective: array("f", []) for objective in objectives}
 
-        for realization in self.synthetic_hydrology:
+        # When for resimulation purposes we need to save the results of a realization:
+        all_realizations = dict()
+
+        for i, realization in enumerate(self.synthetic_hydrology):
 
             self.assign_streamflow_to_catchments(realization)
             self.reset_parameters()
@@ -194,10 +198,17 @@ class ModelNile:
                 np.sum(self.object_by_name("GERD").hydroenergy_produced)
             ) / (20 * 1e6)
 
+            objectives_list = []
+
             for objective in objectives:
-                objective_values[objective].append(locals()[objective])
+                obj_value = locals()[objective]
+                objective_values[objective].append(obj_value)
+                objectives_list.append(obj_value)
+
+            all_realizations[i] = (copy.deepcopy(self), objectives_list)
 
         return (
+            all_realizations,
             np.mean(objective_values["egypt_def"]),
             np.mean(objective_values["min_HAD"]),
             np.mean(objective_values["sudan_def"]),
@@ -449,7 +460,7 @@ class ModelNile:
             catchment.streamflow = np.array(flow_df[catchment.name])
 
     def read_synthetic_hydrology(self, scenario_folder):
-        directory = f"../../synthetic_hydrology/{scenario_folder}"
+        directory = os.path.join(dir_path, f"../synthetic_hydrology/{scenario_folder}")
         list_of_files = [file for file in os.listdir(directory) if file[-4:] == ".csv"]
         for realization in list_of_files:
             hydro_df = pd.read_csv(f"{directory}/{realization}")
