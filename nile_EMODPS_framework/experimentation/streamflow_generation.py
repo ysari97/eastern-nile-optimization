@@ -11,7 +11,7 @@ def cholesky_extended(input_matrix):
     try:
         output = cholesky(input_matrix)
     except np.linalg.LinAlgError:
-        print("Just try except")
+        # print("Just try except")
         # For now, ignore correlations and make sure that streamflows are generated
         # from historical data, properly!
         return np.identity(np.shape(input_matrix)[0])

@@ -108,7 +108,7 @@ def parallel_plots_many_policies(
         "Egypt Irr. Deficit",
         "Egypt Minimum HAD Level",
         "Sudan Irr. Deficit",
-        "Ethiopia Hydropower",
+        "Ethiopia Hydroenergy",
     ],
     units=["BCM/year", "masl", "BCM/year", "TWh/year"],
     directions=["min", "max", "min", "max"],
