@@ -62,13 +62,11 @@ if __name__ == "__main__":
 
     em_model = Model("NileProblem", function=model_with_uncertainty)
     em_model.uncertainties = [
-        RealParameter("mean_factor", 0.7, 1.3),
+        RealParameter("mean_factor", 0.6, 1.4),
         RealParameter("stdev_factor", 1, 1.5),
     ]
 
-    total_parameter_count = (
-        nile_model.overarching_policy.get_total_parameter_count()
-    )
+    total_parameter_count = nile_model.overarching_policy.get_total_parameter_count()
     release_parameter_count = nile_model.overarching_policy.functions[
         "release"
     ].get_free_parameter_number()
@@ -116,9 +114,7 @@ if __name__ == "__main__":
     np.random.seed(123)
 
     with MultiprocessingEvaluator(em_model) as evaluator:
-        experiments, outcomes = evaluator.perform_experiments(
-            n_scenarios, my_policies
-        )
+        experiments, outcomes = evaluator.perform_experiments(n_scenarios, my_policies)
 
     outcomes = pd.DataFrame.from_dict(outcomes)
     experiments.to_csv(f"{output_directory}experiments_exploration.csv")
